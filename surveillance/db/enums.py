@@ -3,10 +3,10 @@ invalid states rather than trusting application-level validation."""
 
 from __future__ import annotations
 
-import enum
+from enum import StrEnum
 
 
-class AccountType(str, enum.Enum):
+class AccountType(StrEnum):
     RETAIL = "retail"
     INSTITUTIONAL = "institutional"
     HEDGE_FUND = "hedge_fund"
@@ -14,43 +14,43 @@ class AccountType(str, enum.Enum):
     PROP_DESK = "prop_desk"
 
 
-class RiskTier(str, enum.Enum):
+class RiskTier(StrEnum):
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
 
 
-class LiquidityTier(str, enum.Enum):
+class LiquidityTier(StrEnum):
     LIQUID = "liquid"
     MID = "mid"
     ILLIQUID = "illiquid"
 
 
-class Side(str, enum.Enum):
+class Side(StrEnum):
     BUY = "buy"
     SELL = "sell"
 
 
-class AlertType(str, enum.Enum):
+class AlertType(StrEnum):
     STATISTICAL_OUTLIER = "statistical_outlier"
     WASH_TRADE_RING = "wash_trade_ring"
     COORDINATED_CLUSTER = "coordinated_cluster"
 
 
-class Severity(str, enum.Enum):
+class Severity(StrEnum):
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
     CRITICAL = "critical"
 
 
-class AlertStatus(str, enum.Enum):
+class AlertStatus(StrEnum):
     OPEN = "open"
     CLEARED = "cleared"
     ESCALATED = "escalated"
 
 
-class CommunityEventType(str, enum.Enum):
+class CommunityEventType(StrEnum):
     COMMUNITY_FORMED = "community_formed"
     COMMUNITY_DISSOLVED = "community_dissolved"
     DENSITY_SPIKE = "density_spike"
