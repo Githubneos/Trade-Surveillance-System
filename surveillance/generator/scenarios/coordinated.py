@@ -75,7 +75,9 @@ def generate(rng: np.random.Generator, ctx: ScenarioContext) -> ScenarioOutput:
             ScenarioLabel(
                 scenario_id=scenario_id,
                 scenario_type="coordinated_cluster",
+                subtype="coordinated_cluster",
                 label="positive",
+                expected_layer="graph",
                 account_ids=sorted(int(m) for m in members),
                 security_ids=[sec_id],
                 window_start=ctx.timestamp(day_idx, min(minutes), 0),

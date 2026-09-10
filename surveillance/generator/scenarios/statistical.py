@@ -148,7 +148,9 @@ def generate(rng: np.random.Generator, ctx: ScenarioContext) -> ScenarioOutput:
                 ScenarioLabel(
                     scenario_id=scenario_id,
                     scenario_type="statistical_outlier",
+                    subtype=variant,
                     label="positive",
+                    expected_layer="statistical",
                     account_ids=[account_id],
                     security_ids=[sec_id],
                     window_start=ctx.timestamp(day_idx, window[0], 0),

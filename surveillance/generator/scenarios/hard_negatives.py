@@ -82,13 +82,15 @@ def _liquid_crowding(rng: np.random.Generator, ctx: ScenarioContext, out: Scenar
                 minutes.append(int(minute))
         out.labels.append(
             ScenarioLabel(
-                scenario_id=scenario_id, scenario_type="liquid_crowding", label="hard_negative",
+                scenario_id=scenario_id, scenario_type="liquid_crowding", subtype="liquid_crowding",
+                label="hard_negative", expected_layer="none",
                 account_ids=sorted(int(m) for m in members), security_ids=[sec_id],
                 window_start=ctx.timestamp(day_idx, min(minutes), 0),
                 window_end=ctx.timestamp(day_idx, max(minutes), 59),
                 difficulty="hard",
                 notes=(
-                    f"{n_accounts} unrelated accounts trading the same mega-cap within an "
+                    f"{n_accounts} unrelated accounts trading the same mega-cap "
+                    "within an "
                     "hour, normal sizes, two-way flow -- a dense clique that is entirely "
                     "ordinary. Tests whether graph edge weights account for base rates."
                 ),
@@ -155,7 +157,8 @@ def _mm_two_sided(rng: np.random.Generator, ctx: ScenarioContext, out: ScenarioO
 
         out.labels.append(
             ScenarioLabel(
-                scenario_id=scenario_id, scenario_type="mm_two_sided", label="hard_negative",
+                scenario_id=scenario_id, scenario_type="mm_two_sided", subtype="mm_two_sided",
+                label="hard_negative", expected_layer="none",
                 account_ids=sorted([mm_id, *(int(c) for c in clients)]), security_ids=[sec_id],
                 window_start=ctx.timestamp(day_idx, min(minutes), 0),
                 window_end=ctx.timestamp(day_idx, max(minutes), 59),
@@ -200,7 +203,8 @@ def _legit_block(rng: np.random.Generator, ctx: ScenarioContext, out: ScenarioOu
         )
         out.labels.append(
             ScenarioLabel(
-                scenario_id=scenario_id, scenario_type="legit_block", label="hard_negative",
+                scenario_id=scenario_id, scenario_type="legit_block", subtype="legit_block",
+                label="hard_negative", expected_layer="none",
                 account_ids=[aid], security_ids=[sec_id],
                 window_start=ctx.timestamp(day_idx, minute, 0),
                 window_end=ctx.timestamp(day_idx, minute, 59),
@@ -253,7 +257,8 @@ def _event_comovement(rng: np.random.Generator, ctx: ScenarioContext, out: Scena
 
         out.labels.append(
             ScenarioLabel(
-                scenario_id=scenario_id, scenario_type="event_comovement", label="hard_negative",
+                scenario_id=scenario_id, scenario_type="event_comovement",
+                subtype="event_comovement", label="hard_negative", expected_layer="none",
                 account_ids=sorted(members), security_ids=[sec_id],
                 window_start=ctx.timestamp(day_idx, min(minutes), 0),
                 window_end=ctx.timestamp(day_idx, max(minutes), 59),

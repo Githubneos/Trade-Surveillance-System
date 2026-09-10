@@ -29,7 +29,16 @@ Label = Literal["positive", "hard_negative"]
 class ScenarioLabel:
     scenario_id: str
     scenario_type: str
+    #: Optional finer-grained family within scenario_type, e.g. the 'size_spike' variant
+    #: of a statistical_outlier. Reported separately because aggregating variants of very
+    #: different difficulty into one row hides which ones a detector actually catches.
+    subtype: str
     label: Label
+    #: Which detection layer is *expected* to catch this scenario: "statistical", "graph",
+    #: or "none" for hard negatives. Declared by the scenario author up front, so Phase 5
+    #: can report attribution ("which layer caught what") against a stated expectation
+    #: rather than rationalising whatever the detectors happen to do.
+    expected_layer: str
     account_ids: list[int]
     security_ids: list[int]
     window_start: datetime

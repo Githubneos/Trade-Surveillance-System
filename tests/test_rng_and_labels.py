@@ -26,7 +26,9 @@ def test_label_roundtrip(tmp_path):
         ScenarioLabel(
             scenario_id="wash_ring_01",
             scenario_type="wash_ring",
+            subtype="wash_ring",
             label="positive",
+            expected_layer="graph",
             account_ids=[1, 2, 3],
             security_ids=[7],
             window_start=datetime(2025, 3, 4, 15, 0, tzinfo=UTC),
