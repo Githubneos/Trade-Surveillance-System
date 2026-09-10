@@ -21,7 +21,10 @@ import pytest
 DETECT_DIR = Path(__file__).resolve().parent.parent / "surveillance" / "detect"
 
 FORBIDDEN_NAMES = {"counterparty_account_id", "ground_truth_path", "read_labels", "ScenarioLabel"}
-FORBIDDEN_IMPORT_PREFIXES = ("surveillance.generator.ground_truth", "surveillance.generator.scenarios")
+FORBIDDEN_IMPORT_PREFIXES = (
+    "surveillance.generator.ground_truth",
+    "surveillance.generator.scenarios",
+)
 
 
 def _detect_modules() -> list[Path]:
