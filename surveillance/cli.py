@@ -63,5 +63,17 @@ def report_cmd() -> None:
     print_report(ds, console)
 
 
+@app.command("serve")
+def serve_cmd(
+    host: str = typer.Option("127.0.0.1", help="Bind address"),
+    port: int = typer.Option(8000, help="Port"),
+) -> None:
+    """Serve the local dataset explorer (evaluation tool -- reads ground truth)."""
+    import uvicorn
+
+    console.print(f"[green]dataset explorer[/] -> http://{host}:{port}")
+    uvicorn.run("surveillance.eval.explorer:create_app", host=host, port=port, factory=True)
+
+
 if __name__ == "__main__":
     app()
