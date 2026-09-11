@@ -1,0 +1,108 @@
+# One command to run the whole system:  docker compose up --build
+#
+# Bring-up order is enforced with health checks rather than sleeps: the worker cannot
+# migrate until Postgres is genuinely accepting connections, and the API cannot serve
+# until the schema exists. `depends_on: condition:` is what makes that a guarantee instead
+# of a hope.
+
+name: trade-surveillance
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: surveil
+      POSTGRES_PASSWORD: surveil
+      POSTGRES_DB: surveillance
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "55432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U surveil -d surveillance"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "56379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # One-shot: migrate, generate the dataset, load it, and run detection. The API and
+  # worker wait for this to finish, so a fresh `compose up` lands on a populated system
+  # rather than an empty dashboard that looks broken.
+  bootstrap:
+    build: .
+    environment: &env
+      SURV_DATABASE_URL: postgresql+psycopg://surveil:surveil@postgres:5432/surveillance
+      SURV_REDIS_URL: redis://redis:6379/0
+      SURV_DATA_DIR: /app/data
+    volumes:
+      - appdata:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: >
+      sh -c "alembic upgrade head &&
+             python -m surveillance.cli generate &&
+             python -m surveillance.cli detect --no-report"
+    restart: "no"
+
+  api:
+    build: .
+    environment: *env
+    volumes:
+      - appdata:/app/data
+    ports:
+      - "8000:8000"
+    depends_on:
+      bootstrap:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  # The evaluation-side explorer, deliberately a separate service. It reads ground-truth
+  # labels; the API above must not, and running them as one process would make that
+  # separation a matter of discipline rather than architecture.
+  explorer:
+    build: .
+    environment: *env
+    volumes:
+      - appdata:/app/data
+    ports:
+      # Host port 8011, not 8001: 8001 is a common default for local tunnels and dev
+      # servers, and a stack that fails on first run because of a port clash is a stack
+      # nobody evaluates twice.
+      - "8011:8001"
+    depends_on:
+      bootstrap:
+        condition: service_completed_successfully
+    command: >
+      python -m uvicorn surveillance.eval.explorer:create_app
+             --factory --host 0.0.0.0 --port 8001
+    restart: unless-stopped
+
+  # Streaming ingestion worker: consumes the Redis stream into Postgres.
+  worker:
+    build: .
+    environment: *env
+    volumes:
+      - appdata:/app/data
+    depends_on:
+      bootstrap:
+        condition: service_completed_successfully
+    command: >
+      python -m surveillance.cli consume --name worker-1 --idle-exit 0
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  appdata:

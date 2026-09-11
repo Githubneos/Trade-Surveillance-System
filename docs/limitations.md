@@ -70,6 +70,16 @@ Equities only, one simulated market, no derivatives, no cross-product manipulati
 moving a cash market to profit on options). Real abuse frequently spans products precisely
 because single-product surveillance is common.
 
+## The news-correlation signal is structurally synthetic
+
+Our securities are invented, so they cannot genuinely correlate with real corporate
+filings. Each synthetic security is mapped to a real SEC CIK by a documented deterministic
+assignment, and that company's real 8-K *timestamps* become the news events for it. The
+timing signal is therefore real news timing measured against synthetic trades: it
+demonstrates the mechanism and the integration, and it says nothing about whether trading
+in these instruments actually anticipated anything. Treat any "trades near material news"
+figure as an engineering demonstration, not a finding.
+
 ## No exchange holidays or auctions
 
 The calendar is weekdays only, and every session is a continuous 09:30–16:00 with no
