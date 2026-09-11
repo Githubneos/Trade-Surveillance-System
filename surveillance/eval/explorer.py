@@ -168,6 +168,8 @@ def create_app() -> FastAPI:
             out.append(
                 {
                     "scenario_id": label.scenario_id,
+                    "case_ref": label.case_ref,
+                    "title": label.title,
                     "scenario_type": label.scenario_type,
                     "subtype": label.subtype,
                     "label": label.label,
@@ -243,6 +245,8 @@ def create_app() -> FastAPI:
         rows = z[z["scenario_id"] == scenario_id].sort_values("executed_at")
         return {
             "scenario_id": label.scenario_id,
+            "case_ref": label.case_ref,
+            "title": label.title,
             "scenario_type": label.scenario_type,
             "subtype": label.subtype,
             "label": label.label,
@@ -255,6 +259,7 @@ def create_app() -> FastAPI:
                 {
                     "id": aid,
                     "external_ref": ref["accounts"].get(aid, {}).get("external_ref"),
+                    "name": ref["accounts"].get(aid, {}).get("name"),
                     "account_type": ref["accounts"].get(aid, {}).get("account_type"),
                 }
                 for aid in label.account_ids
@@ -263,6 +268,7 @@ def create_app() -> FastAPI:
                 {
                     "id": sid,
                     "ticker": ref["securities"].get(sid, {}).get("ticker"),
+                    "name": ref["securities"].get(sid, {}).get("name"),
                     "liquidity_tier": ref["securities"].get(sid, {}).get("liquidity_tier"),
                 }
                 for sid in label.security_ids
@@ -319,6 +325,7 @@ def _serialise(rows: pd.DataFrame, ref: dict) -> list[dict]:
                 "external_id": r.external_id,
                 "account_id": int(r.account_id),
                 "account_ref": ref["accounts"].get(int(r.account_id), {}).get("external_ref"),
+                "account_name": ref["accounts"].get(int(r.account_id), {}).get("name"),
                 "security_id": int(r.security_id),
                 "ticker": ref["securities"].get(int(r.security_id), {}).get("ticker"),
                 "liquidity_tier": ref["securities"]

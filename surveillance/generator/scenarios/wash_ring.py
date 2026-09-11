@@ -130,6 +130,10 @@ def generate(rng: np.random.Generator, ctx: ScenarioContext) -> ScenarioOutput:
         out.labels.append(
             ScenarioLabel(
                 scenario_id=scenario_id,
+                title=(
+                    f"Circular trading between {n_members} accounts in {ctx.ticker(sec_id)}"
+                ),
+                case_ref="",
                 scenario_type="wash_ring",
                 subtype="wash_ring",
                 label="positive",

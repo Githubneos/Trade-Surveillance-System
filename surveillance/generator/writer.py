@@ -79,6 +79,12 @@ def build_dataset(
     for label in labels:
         label.trade_external_ids = by_scenario.get(label.scenario_id, [])
 
+    # Case references are assigned in the order the activity actually occurred, not in the
+    # order the generator happened to run its scenario modules. A case log reads
+    # chronologically or it is not a case log.
+    for n, label in enumerate(sorted(labels, key=lambda x: (x.window_start, x.scenario_id)), 1):
+        label.case_ref = f"SR-{label.window_start:%Y}-{n:04d}"
+
     return Dataset(trades=df, labels=labels, accounts=accounts, securities=securities)
 
 

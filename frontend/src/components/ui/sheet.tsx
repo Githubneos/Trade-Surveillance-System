@@ -27,7 +27,7 @@ export function SheetContent({
         className={cn(
           "anim-sheet fixed top-0 right-0 z-50 flex h-dvh w-full flex-col",
           "border-l border-[var(--color-line)] bg-[var(--color-surface)]",
-          "shadow-[var(--shadow-overlay)] sm:max-w-4xl",
+          "shadow-[var(--shadow-overlay)] sm:max-w-5xl",
           className,
         )}
       >

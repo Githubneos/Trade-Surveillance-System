@@ -144,9 +144,20 @@ def generate(rng: np.random.Generator, ctx: ScenarioContext) -> ScenarioOutput:
                 )
                 window = (minutes[0], minutes[-1])
 
+            who = ctx.account_name(account_id)
+            ticker = ctx.ticker(sec_id)
+            title = {
+                "size_spike": f"Outsized {ticker} order by {who}",
+                "price_outlier": f"Off-market {ticker} execution by {who}",
+                "odd_hour": f"Out-of-pattern {ticker} timing by {who}",
+                "frequency_burst": f"Rapid {ticker} order burst by {who}",
+            }[variant]
+
             out.labels.append(
                 ScenarioLabel(
                     scenario_id=scenario_id,
+                    title=title,
+                    case_ref="",
                     scenario_type="statistical_outlier",
                     subtype=variant,
                     label="positive",

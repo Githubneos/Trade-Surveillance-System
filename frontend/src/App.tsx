@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "motion/react"
-import { Activity, Database, Moon, ShieldAlert, Sun } from "lucide-react"
+import { Database, Moon, ShieldAlert, Sun } from "lucide-react"
 import { useCallback, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -50,7 +50,7 @@ export default function App() {
                 Trade Surveillance
               </h1>
               <p className="truncate text-[12.5px] text-[var(--color-ink-soft)]">
-                Dataset explorer · Phase 1 output
+                Market abuse detection
               </p>
             </div>
             <div className="ml-auto flex items-center gap-2">
@@ -76,25 +76,7 @@ export default function App() {
           </div>
         </header>
 
-        <main className="mx-auto max-w-[1400px] px-6 pt-6 pb-20">
-          <motion.div
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35 }}
-            className="mb-6 flex items-start gap-3 rounded-xl border border-[var(--color-success)]/25 bg-[var(--color-success-soft)]/60 px-4 py-3"
-          >
-            <Activity className="mt-0.5 size-4 shrink-0 text-[var(--color-success)]" />
-            <p className="text-[12.5px] leading-relaxed text-[var(--color-ink-soft)]">
-              <strong className="font-semibold text-[var(--color-ink)]">
-                Evaluation-side tool.
-              </strong>{" "}
-              This reads ground-truth labels so you can inspect what was planted. The Phase 6
-              serving API is a separate application with no label access — a boundary enforced
-              by <code className="font-mono text-[11.5px]">tests/test_detection_isolation.py</code>,
-              which parses the AST of every detection module rather than trusting a grep.
-            </p>
-          </motion.div>
-
+        <main className="mx-auto max-w-[1400px] px-6 pt-7 pb-20">
           {error && (
             <Card className="mb-6 border-[var(--color-danger)]/30 bg-[var(--color-danger-soft)]/50 p-4 text-[13px]">
               <strong className="text-[var(--color-danger)]">Cannot reach the API.</strong>{" "}
@@ -165,12 +147,12 @@ export default function App() {
 
           <section>
             <div className="mb-3">
-              <h2 className="text-[15px] font-semibold tracking-tight">Planted scenarios</h2>
+              <h2 className="text-[15px] font-semibold tracking-tight">Case log</h2>
               <p className="mt-1 max-w-3xl text-[12.5px] leading-relaxed text-[var(--color-ink-soft)]">
                 <strong className="font-medium text-[var(--color-ink)]">Size sep.</strong> is the
-                share of a scenario's trades beyond |z| = 3 of that account's own background
-                distribution. It measures one feature, so it says nothing about timing or price.
-                The rows that matter are the positives expecting the{" "}
+                share of a case's trades beyond |z| = 3 of that account's own trading history. It
+                measures one feature, so it says nothing about timing or price. The rows that
+                matter are the confirmed cases expecting the{" "}
                 <strong className="font-medium text-[var(--color-ink)]">graph</strong> layer: a low
                 value there confirms no per-trade size rule can find them. Select a row for detail.
               </p>

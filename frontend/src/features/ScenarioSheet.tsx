@@ -2,7 +2,7 @@ import { motion } from "motion/react"
 import { Badge } from "@/components/ui/badge"
 import { Sheet, SheetContent } from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
-import { fmtInt, fmtMoney, fmtZ, verdict, type ScenarioDetail } from "@/lib/api"
+import { fmtInt, fmtMoney, fmtZ, layerLabel, typeLabel, verdict, type ScenarioDetail } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
 const TONE = { good: "success", bad: "danger", warn: "warn" } as const
@@ -28,17 +28,20 @@ export function ScenarioSheet({
         <SheetContent
           title={
             <div className="min-w-0">
-              <div className="font-mono text-[15px] font-semibold tracking-tight">
-                {detail?.scenario_id ?? "…"}
+              <div className="font-mono text-[11.5px] tracking-wide text-[var(--color-ink-faint)]">
+                {detail?.case_ref ?? ""}
+              </div>
+              <div className="mt-0.5 text-[16px] leading-snug font-semibold tracking-tight">
+                {detail?.title ?? "Loading…"}
               </div>
               <div className="mt-1.5 flex flex-wrap items-center gap-2">
                 {detail && (
                   <>
                     <Badge tone={detail.label === "positive" ? "danger" : "brand"}>
-                      {detail.label === "positive" ? "POSITIVE" : "hard negative"}
+                      {detail.label === "positive" ? "Confirmed abuse" : "Benign look-alike"}
                     </Badge>
-                    <Badge>{detail.subtype}</Badge>
-                    <Badge>expects {detail.expected_layer}</Badge>
+                    <Badge>{typeLabel(detail.subtype)}</Badge>
+                    <Badge>{layerLabel(detail.expected_layer)}</Badge>
                     <Badge>{detail.difficulty}</Badge>
                     {v && <Badge tone={TONE[v.tone]}>{v.text}</Badge>}
                   </>
@@ -75,8 +78,10 @@ export function ScenarioSheet({
                 <dd className="flex flex-wrap gap-1.5">
                   {detail.accounts.map((a) => (
                     <Badge key={a.id}>
-                      <span className="font-mono">{a.external_ref ?? a.id}</span>
-                      <span className="text-[var(--color-ink-faint)]">{a.account_type}</span>
+                      <span>{a.name ?? a.external_ref ?? a.id}</span>
+                      <span className="text-[var(--color-ink-faint)]">
+                        {a.account_type?.replace(/_/g, " ")}
+                      </span>
                     </Badge>
                   ))}
                 </dd>
@@ -84,7 +89,8 @@ export function ScenarioSheet({
                 <dd className="flex flex-wrap gap-1.5">
                   {detail.securities.map((s) => (
                     <Badge key={s.id} tone="brand">
-                      <span className="font-mono">{s.ticker ?? s.id}</span>
+                      <span className="font-mono font-semibold">{s.ticker ?? s.id}</span>
+                      <span>{s.name}</span>
                       <span className="opacity-70">{s.liquidity_tier}</span>
                     </Badge>
                   ))}
@@ -104,7 +110,7 @@ export function ScenarioSheet({
                   </p>
                 </div>
                 <div className="scrollbar-slim overflow-x-auto rounded-lg border border-[var(--color-line)]">
-                  <table className="w-full min-w-[760px] border-collapse text-[12.5px]">
+                  <table className="w-full min-w-[880px] border-collapse text-[12.5px]">
                     <thead>
                       <tr className="bg-[var(--color-surface-muted)] text-[10.5px] tracking-wide text-[var(--color-ink-faint)] uppercase">
                         <th className="px-3 py-2 text-left font-semibold">Trade</th>
@@ -130,7 +136,7 @@ export function ScenarioSheet({
                           <td className="px-3 py-2 font-mono text-[11.5px] text-[var(--color-ink-faint)]">
                             {t.external_id}
                           </td>
-                          <td className="px-3 py-2 font-mono text-[11.5px]">{t.account_ref}</td>
+                          <td className="px-3 py-2 whitespace-nowrap">{t.account_name}</td>
                           <td className="px-3 py-2">
                             <span className="font-medium">{t.ticker}</span>{" "}
                             <span className="text-[var(--color-ink-faint)]">

@@ -62,11 +62,20 @@ class ScenarioContext:
     personas: dict[int, Persona]
     securities: dict[int, SecurityRef]
     market: MarketData
+    #: Display names, so a scenario title can say "Ironvale Trading" rather than "acct 41".
+    account_names: dict[int, str] = field(default_factory=dict)
     #: Scales planted scenario counts down for small universes (tests, quick iteration),
     #: so the generator degrades gracefully instead of exhausting the account pool.
     scale: float = 1.0
     reserved_accounts: set[int] = field(default_factory=set)
     reserved_securities: set[int] = field(default_factory=set)
+
+    def account_name(self, account_id: int) -> str:
+        return self.account_names.get(account_id, f"Account {account_id}")
+
+    def ticker(self, security_id: int) -> str:
+        sec = self.securities.get(security_id)
+        return sec.ticker if sec else str(security_id)
 
     def scaled(self, n: int) -> int:
         return max(1, int(round(n * self.scale)))

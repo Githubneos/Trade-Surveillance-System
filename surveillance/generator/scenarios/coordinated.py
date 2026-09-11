@@ -74,6 +74,11 @@ def generate(rng: np.random.Generator, ctx: ScenarioContext) -> ScenarioOutput:
         out.labels.append(
             ScenarioLabel(
                 scenario_id=scenario_id,
+                title=(
+                    f"Coordinated {'accumulation' if is_buy else 'disposal'} of "
+                    f"{ctx.ticker(sec_id)} by {n_accounts} unrelated accounts"
+                ),
+                case_ref="",
                 scenario_type="coordinated_cluster",
                 subtype="coordinated_cluster",
                 label="positive",

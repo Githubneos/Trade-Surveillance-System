@@ -25,6 +25,8 @@ def test_label_roundtrip(tmp_path):
     labels = [
         ScenarioLabel(
             scenario_id="wash_ring_01",
+            title="Circular trading between 3 accounts in LARK",
+            case_ref="SR-2025-0001",
             scenario_type="wash_ring",
             subtype="wash_ring",
             label="positive",

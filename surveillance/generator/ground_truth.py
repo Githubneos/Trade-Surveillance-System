@@ -28,6 +28,13 @@ Label = Literal["positive", "hard_negative"]
 @dataclass(slots=True)
 class ScenarioLabel:
     scenario_id: str
+    #: Human-readable case title, composed from the scenario's own contents -- the
+    #: instrument, the parties, the size of the group. Generated rather than hardcoded, so
+    #: a title always describes the trades that actually got planted.
+    title: str
+    #: Chronological case reference, assigned after generation once every scenario's window
+    #: is known (see writer.build_dataset). Reads like a case log rather than a loop index.
+    case_ref: str
     scenario_type: str
     #: Optional finer-grained family within scenario_type, e.g. the 'size_spike' variant
     #: of a statistical_outlier. Reported separately because aggregating variants of very

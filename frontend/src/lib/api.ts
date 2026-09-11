@@ -27,6 +27,8 @@ export interface Stats {
 
 export interface ScenarioRow {
   scenario_id: string
+  case_ref: string
+  title: string
   scenario_type: string
   subtype: string
   label: Label
@@ -46,6 +48,7 @@ export interface Trade {
   external_id: string
   account_id: number
   account_ref: string | null
+  account_name: string | null
   security_id: number
   ticker: string | null
   liquidity_tier: string | null
@@ -60,8 +63,18 @@ export interface Trade {
 }
 
 export interface ScenarioDetail extends Omit<ScenarioRow, "n_accounts" | "n_trades"> {
-  accounts: { id: number; external_ref: string | null; account_type: string | null }[]
-  securities: { id: number; ticker: string | null; liquidity_tier: string | null }[]
+  accounts: {
+    id: number
+    external_ref: string | null
+    name: string | null
+    account_type: string | null
+  }[]
+  securities: {
+    id: number
+    ticker: string | null
+    name: string | null
+    liquidity_tier: string | null
+  }[]
   trades: Trade[]
 }
 
@@ -82,6 +95,37 @@ export interface ZHistogram {
   bins: number[]
   series: { key: string; label: string; counts: number[]; total: number }[]
 }
+
+/* ---------- display labels ----------------------------------------------------------
+   The wire format uses snake_case identifiers because they are stable keys. Showing those
+   raw in a case log ("event_comovement") makes a finished tool look like a database dump,
+   so every identifier the reader sees is mapped to language a compliance analyst uses.
+------------------------------------------------------------------------------------- */
+
+const TYPE_LABELS: Record<string, string> = {
+  wash_ring: "Wash ring",
+  coordinated_cluster: "Coordinated cluster",
+  size_spike: "Size spike",
+  price_outlier: "Off-market price",
+  odd_hour: "Unusual timing",
+  frequency_burst: "Order burst",
+  liquid_crowding: "Crowded session",
+  mm_two_sided: "Market making",
+  legit_block: "Block trade",
+  event_comovement: "News co-movement",
+  statistical_outlier: "Per-trade anomaly",
+}
+
+export const typeLabel = (key: string) =>
+  TYPE_LABELS[key] ?? key.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase())
+
+const LAYER_LABELS: Record<ExpectedLayer, string> = {
+  graph: "Network",
+  statistical: "Per-trade",
+  none: "Should not fire",
+}
+
+export const layerLabel = (key: ExpectedLayer) => LAYER_LABELS[key] ?? key
 
 /* ---------- formatting helpers, colocated so every view formats identically ---------- */
 

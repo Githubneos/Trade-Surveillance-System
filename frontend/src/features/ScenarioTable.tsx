@@ -5,20 +5,20 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Tooltip } from "@/components/ui/tooltip"
-import { fmtInt, fmtPct, fmtZ, verdict, type ScenarioRow } from "@/lib/api"
+import { fmtInt, fmtPct, fmtZ, layerLabel, typeLabel, verdict, type ScenarioRow } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
 type SortKey = keyof Pick<
   ScenarioRow,
-  "scenario_id" | "subtype" | "label" | "expected_layer" | "n_accounts" | "n_trades" | "median_z" | "size_sep" | "difficulty"
+  "case_ref" | "title" | "subtype" | "label" | "expected_layer" | "n_accounts" | "n_trades" | "median_z" | "size_sep" | "difficulty"
 >
 
 const FILTERS = [
   { id: "all", label: "All" },
-  { id: "positive", label: "Positives" },
-  { id: "hard_negative", label: "Hard negatives" },
-  { id: "graph", label: "Expect graph layer" },
-  { id: "statistical", label: "Expect statistical layer" },
+  { id: "positive", label: "Confirmed abuse" },
+  { id: "hard_negative", label: "Benign look-alikes" },
+  { id: "graph", label: "Network detection" },
+  { id: "statistical", label: "Per-trade detection" },
 ] as const
 
 const TONE = { good: "success", bad: "danger", warn: "warn" } as const
@@ -72,11 +72,12 @@ export function ScenarioTable({
       </div>
 
       <div className="scrollbar-slim overflow-x-auto">
-        <table className="w-full min-w-[980px] border-collapse text-[13px]">
+        <table className="w-full min-w-[1180px] border-collapse text-[13px]">
           <thead>
             <tr className="bg-[var(--color-surface-muted)]">
               <Th onClick={() => toggle("label")} sort={sort} k="label">Label</Th>
-              <Th onClick={() => toggle("scenario_id")} sort={sort} k="scenario_id">Scenario</Th>
+              <Th onClick={() => toggle("case_ref")} sort={sort} k="case_ref">Case</Th>
+              <Th onClick={() => toggle("title")} sort={sort} k="title">Summary</Th>
               <Th onClick={() => toggle("subtype")} sort={sort} k="subtype">Type</Th>
               <Th onClick={() => toggle("expected_layer")} sort={sort} k="expected_layer">
                 Caught by
@@ -119,15 +120,20 @@ export function ScenarioTable({
                 >
                   <td className="px-4 py-2.5">
                     <Badge tone={r.label === "positive" ? "danger" : "brand"}>
-                      {r.label === "positive" ? "POSITIVE" : "hard neg"}
+                      {r.label === "positive" ? "Confirmed" : "Benign"}
                     </Badge>
                   </td>
-                  <td className="px-4 py-2.5 font-mono text-[12px] font-medium">
-                    {r.scenario_id}
+                  <td className="px-4 py-2.5 font-mono text-[12px] whitespace-nowrap text-[var(--color-ink-faint)]">
+                    {r.case_ref}
                   </td>
-                  <td className="px-4 py-2.5 text-[var(--color-ink-soft)]">{r.subtype}</td>
-                  <td className="px-4 py-2.5">
-                    <span className="text-[var(--color-ink-faint)]">{r.expected_layer}</span>
+                  <td className="max-w-[24rem] px-4 py-2.5 font-medium">{r.title}</td>
+                  <td className="px-4 py-2.5 whitespace-nowrap text-[var(--color-ink-soft)]">
+                    {typeLabel(r.subtype)}
+                  </td>
+                  <td className="px-4 py-2.5 whitespace-nowrap">
+                    <span className="text-[var(--color-ink-faint)]">
+                      {layerLabel(r.expected_layer)}
+                    </span>
                   </td>
                   <td className="tnum px-4 py-2.5 text-right">{r.n_accounts}</td>
                   <td className="tnum px-4 py-2.5 text-right">{fmtInt(r.n_trades)}</td>

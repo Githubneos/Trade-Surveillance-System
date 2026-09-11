@@ -39,6 +39,7 @@ def generate(settings: Settings | None = None, params: GeneratorParams | None = 
         personas=personas,
         securities={s.id: s for s in securities},
         market=market,
+        account_names={a.id: a.name for a in accounts},
         scale=min(1.0, params.n_accounts / 350),
     )
 

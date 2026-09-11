@@ -133,6 +133,41 @@ def test_external_ids_do_not_leak_labels(dataset):
     assert (np.diff(planted) > 1).sum() > len(planted) * 0.5
 
 
+def test_every_scenario_has_a_descriptive_title(dataset, labels_by_id):
+    """Titles are composed from the scenario's own contents, so they must actually name
+    the instrument or the party involved rather than restate the scenario type."""
+    tickers = {s.ticker for s in dataset.securities}
+    names = {a.name for a in dataset.accounts}
+    for label in labels_by_id.values():
+        assert label.title, f"{label.scenario_id} has no title"
+        assert label.title != label.scenario_type
+        assert len(label.title) > 15
+        mentions = any(t in label.title for t in tickers) or any(
+            n in label.title for n in names
+        )
+        assert mentions, f"{label.scenario_id} title names nothing real: {label.title!r}"
+
+
+def test_case_refs_are_unique_and_chronological(dataset):
+    """Case references are assigned in the order the activity happened, not the order the
+    generator ran its modules -- otherwise the case log is just a loop index."""
+    ordered = sorted(dataset.labels, key=lambda x: x.case_ref)
+    refs = [x.case_ref for x in ordered]
+    assert len(set(refs)) == len(refs)
+    starts = [x.window_start for x in ordered]
+    assert starts == sorted(starts)
+
+
+def test_reference_names_look_real(dataset):
+    """Guards against regressing to 'Retail Account 00042' / 'ZAV Holdings' placeholders."""
+    for a in dataset.accounts:
+        assert "Account" not in a.name or not a.name.endswith(tuple("0123456789"))
+    for s in dataset.securities:
+        assert not s.name.endswith("Holdings") or s.name != f"{s.ticker} Holdings"
+        assert 3 <= len(s.ticker) <= 4, f"{s.ticker} is not a plausible ticker"
+        assert s.name != s.ticker
+
+
 def test_every_label_resolves_to_real_trades(dataset, labels_by_id):
     valid = set(dataset.trades["external_id"])
     for label in labels_by_id.values():
