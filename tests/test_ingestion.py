@@ -141,7 +141,10 @@ def test_redelivery_is_absorbed_by_the_idempotent_write(client, maker, seeded):
 
 def test_sigkilled_consumer_loses_and_duplicates_nothing(client, maker, seeded):
     """Kill the consumer mid-stream, restart it, and check the books balance."""
-    trades = seeded.trades.head(6000)
+    # Enough work that the consumer cannot plausibly finish inside the polling interval.
+    # An earlier version used 6,000 trades, which the consumer drained in about a second --
+    # the kill then landed after completion and the test asserted nothing about recovery.
+    trades = seeded.trades.head(20000)
     publish(client, trades, stream_key=STREAM)
     assert client.xlen(STREAM) == len(trades)
 
@@ -156,21 +159,24 @@ def test_sigkilled_consumer_loses_and_duplicates_nothing(client, maker, seeded):
     }
     cmd = [
         sys.executable, "-m", "surveillance.cli", "consume",
-        "--name", "victim", "--batch", "100", "--idle-exit", "30",
+        "--name", "victim", "--batch", "50", "--idle-exit", "30",
     ]
     proc = subprocess.Popen(cmd, env=env, cwd=REPO, stdout=subprocess.DEVNULL,
                             stderr=subprocess.DEVNULL)
     try:
         # Wait until it is demonstrably mid-flight: some rows in, but not all.
-        deadline = time.monotonic() + 30
+        deadline = time.monotonic() + 60
         progressed = 0
+        # Kill well before the end so the window between observing progress and delivering
+        # the signal cannot let the run complete underneath us.
+        ceiling = int(len(trades) * 0.6)
         while time.monotonic() < deadline:
             progressed, _ = _count(maker)
-            if 0 < progressed < len(trades):
+            if 0 < progressed < ceiling:
                 break
-            time.sleep(0.05)
-        assert 0 < progressed < len(trades), (
-            f"consumer never reached a mid-stream state (rows={progressed})"
+            time.sleep(0.01)
+        assert 0 < progressed < ceiling, (
+            f"consumer never observed mid-stream (rows={progressed}/{len(trades)})"
         )
     finally:
         proc.send_signal(signal.SIGKILL)

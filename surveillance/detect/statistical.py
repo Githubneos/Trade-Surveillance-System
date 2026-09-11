@@ -217,10 +217,16 @@ def per_typology_alerts(
         threshold = np.partition(ranked, n - keep)[n - keep]
         hits = np.nonzero(ranked >= threshold)[0]
 
-        # Score is the within-rule percentile, so severities are comparable across rules
-        # even though the underlying features are not.
-        order = pd.Series(ranked).rank(pct=True).to_numpy()
-        for i in hits:
+        # Score ranks each alert against the OTHER ALERTS from the same rule, not against
+        # the whole population. Ranking against everything gives every alert a percentile
+        # of ~1.0 by definition -- they all cleared the same extreme threshold -- so every
+        # alert came out "critical" and severity carried no information at all.
+        #
+        # Mapped into [0.5, 1.0] so the weakest breach is still meaningfully above an
+        # ordinary trade while the strongest is separated from it.
+        breach_order = pd.Series(ranked[hits]).rank(pct=True).to_numpy()
+        scores = 0.5 + 0.5 * breach_order
+        for slot, i in enumerate(hits):
             out.append(
                 TypologyAlert(
                     external_id=str(features["external_id"].iloc[i]),
@@ -230,7 +236,7 @@ def per_typology_alerts(
                     rule=rule_name,
                     feature=col,
                     value=float(values[i]),
-                    score=float(order[i]),
+                    score=float(scores[slot]),
                 )
             )
     return out
