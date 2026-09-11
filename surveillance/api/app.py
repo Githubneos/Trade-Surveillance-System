@@ -333,7 +333,10 @@ def _mount_frontend(app: FastAPI) -> None:
 
     @app.get("/{path:path}", response_class=HTMLResponse, include_in_schema=False)
     def spa(path: str):
-        if path.startswith(("api/", "ws/")):
+        # /explorer/* belongs to the other application. Falling through to index.html
+        # would hand HTML to a JSON fetch, turning a wrong-port mistake into a confusing
+        # parse error instead of an honest 404.
+        if path.startswith(("api/", "ws/", "explorer/")):
             raise HTTPException(404, "not found")
         candidate = FRONTEND_DIST / path
         if candidate.is_file():
