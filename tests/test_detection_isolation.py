@@ -27,6 +27,29 @@ FORBIDDEN_IMPORT_PREFIXES = (
 )
 
 
+def _docstring_nodes(tree: ast.AST) -> set[int]:
+    """Ids of Constant nodes that are docstrings.
+
+    Docstrings are exempt from the string check, and only docstrings. A detection module
+    should be able to *explain* that it deliberately does not read counterparty identity --
+    that prose is the point of the boundary, not a breach of it. Any other string literal
+    containing a forbidden name still fails, which is what catches the case that actually
+    matters: the column name smuggled into a raw SQL query.
+    """
+    out: set[int] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Module | ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef):
+            continue
+        body = getattr(node, "body", None)
+        if not body:
+            continue
+        first = body[0]
+        if isinstance(first, ast.Expr) and isinstance(first.value, ast.Constant):
+            if isinstance(first.value.value, str):
+                out.add(id(first.value))
+    return out
+
+
 def _detect_modules() -> list[Path]:
     return sorted(p for p in DETECT_DIR.rglob("*.py") if p.name != "__init__.py")
 
@@ -41,6 +64,7 @@ def test_detection_modules_cannot_see_labels(path: Path | None):
         pytest.skip("no detection modules yet; this guard activates from Phase 3 onward")
 
     tree = ast.parse(path.read_text(), filename=str(path))
+    docstrings = _docstring_nodes(tree)
     offenders: list[str] = []
 
     for node in ast.walk(tree):
@@ -48,7 +72,11 @@ def test_detection_modules_cannot_see_labels(path: Path | None):
             offenders.append(f"attribute {node.attr!r} (line {node.lineno})")
         elif isinstance(node, ast.Name) and node.id in FORBIDDEN_NAMES:
             offenders.append(f"name {node.id!r} (line {node.lineno})")
-        elif isinstance(node, ast.Constant) and isinstance(node.value, str):
+        elif (
+            isinstance(node, ast.Constant)
+            and isinstance(node.value, str)
+            and id(node) not in docstrings
+        ):
             for bad in FORBIDDEN_NAMES:
                 if bad in node.value:
                     offenders.append(f"string containing {bad!r} (line {node.lineno})")
