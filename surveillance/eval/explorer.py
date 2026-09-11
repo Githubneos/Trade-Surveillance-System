@@ -17,7 +17,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Query
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
 from surveillance.config import get_settings
@@ -25,7 +26,9 @@ from surveillance.db.session import session_scope
 from surveillance.eval.dataset_report import Z_THRESHOLD, account_baselines
 from surveillance.generator.ground_truth import read_labels
 
-STATIC_DIR = Path(__file__).resolve().parent / "static"
+#: The built React bundle. In development the Vite dev server proxies /api here instead,
+#: so the same FastAPI process backs both modes.
+FRONTEND_DIST = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
 
 
 @lru_cache
@@ -60,12 +63,63 @@ def _zframe() -> pd.DataFrame:
     return j
 
 
+MISSING_BUILD_PAGE = """
+<!doctype html><meta charset="utf-8">
+<title>Trade Surveillance - build the frontend</title>
+<style>
+ body{font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#fafafa;
+      color:#1f2430;display:grid;place-items:center;min-height:100dvh;margin:0;padding:24px}
+ div{max-width:34rem} code{background:#eceef2;padding:2px 6px;border-radius:5px;font-size:13px}
+ h1{font-size:17px;margin:0 0 8px}
+</style>
+<div>
+ <h1>Frontend not built yet</h1>
+ <p>The API is running. Build the dashboard to see it:</p>
+ <p><code>cd frontend &amp;&amp; npm install &amp;&amp; npm run build</code></p>
+ <p>Or run the dev server with hot reload on port 5173:
+    <code>cd frontend &amp;&amp; npm run dev</code></p>
+ <p>The JSON API is available regardless, at <a href="/api/docs">/api/docs</a>.</p>
+</div>
+"""
+
+
+def _mount_frontend(app: FastAPI) -> None:
+    """Serve the built SPA, falling back to instructions if it has not been built.
+
+    Assets are mounted rather than served through a catch-all so hashed filenames get
+    StaticFiles' caching behaviour, while unknown paths fall through to index.html for
+    client-side routing.
+    """
+    index = FRONTEND_DIST / "index.html"
+
+    if (FRONTEND_DIST / "assets").is_dir():
+        app.mount(
+            "/assets",
+            StaticFiles(directory=FRONTEND_DIST / "assets"),
+            name="assets",
+        )
+
+    @app.get("/", response_class=HTMLResponse, include_in_schema=False)
+    def index_route():
+        if not index.exists():
+            return HTMLResponse(MISSING_BUILD_PAGE, status_code=503)
+        return FileResponse(index)
+
+    @app.get("/{path:path}", response_class=HTMLResponse, include_in_schema=False)
+    def spa_fallback(path: str):
+        if path.startswith("api/"):
+            raise HTTPException(404, "not found")
+        candidate = FRONTEND_DIST / path
+        if candidate.is_file():
+            return FileResponse(candidate)
+        if not index.exists():
+            return HTMLResponse(MISSING_BUILD_PAGE, status_code=503)
+        return FileResponse(index)
+
+
 def create_app() -> FastAPI:
     app = FastAPI(title="Trade Surveillance -- Dataset Explorer", docs_url="/api/docs")
 
-    @app.get("/", response_class=HTMLResponse)
-    def index() -> str:
-        return (STATIC_DIR / "index.html").read_text()
 
     @app.get("/api/stats")
     def stats() -> dict:
@@ -130,6 +184,52 @@ def create_app() -> FastAPI:
                 }
             )
         return out
+
+    @app.get("/api/z-histogram")
+    def z_histogram() -> dict:
+        """Distribution of account-relative log-notional z-scores, by group.
+
+        This is the single chart that carries the project's central claim. Densities are
+        normalised to percent-of-group because the groups differ in size by four orders of
+        magnitude (169k background trades vs 14 size spikes); raw counts would render every
+        planted series as a flat line on the axis and show nothing.
+        """
+        z = _zframe()
+        _, labels = _dataset()
+        by_scenario = {label.scenario_id: label for label in labels}
+        subtype = z["scenario_id"].map(lambda s: None if pd.isna(s) else by_scenario[s].subtype)
+
+        groups = {
+            "background": z["scenario_id"].isna(),
+            "wash_ring": subtype == "wash_ring",
+            "coordinated_cluster": subtype == "coordinated_cluster",
+            "size_spike": subtype == "size_spike",
+        }
+        titles = {
+            "background": "Ordinary activity",
+            "wash_ring": "Wash rings",
+            "coordinated_cluster": "Coordinated clusters",
+            "size_spike": "Size spikes",
+        }
+
+        edges = np.arange(-4.0, 8.25, 0.25)
+        centres = ((edges[:-1] + edges[1:]) / 2).round(4).tolist()
+
+        series = []
+        for key, mask in groups.items():
+            vals = z.loc[mask, "z"].dropna().to_numpy()
+            counts, _ = np.histogram(vals, bins=edges)
+            total = int(counts.sum())
+            share = (counts / total) if total else counts.astype(float)
+            series.append(
+                {
+                    "key": key,
+                    "label": titles[key],
+                    "counts": [round(float(x), 6) for x in share],
+                    "total": total,
+                }
+            )
+        return {"bins": centres, "series": series}
 
     @app.get("/api/scenarios/{scenario_id}")
     def scenario_detail(scenario_id: str) -> dict:
@@ -205,6 +305,9 @@ def create_app() -> FastAPI:
             "recent_trades": _serialise(rows.tail(50), ref),
         }
 
+    # Registered last on purpose: the SPA catch-all would shadow every API route above
+    # if it were declared before them.
+    _mount_frontend(app)
     return app
 
 
