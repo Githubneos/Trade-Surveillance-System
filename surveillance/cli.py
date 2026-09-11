@@ -170,11 +170,26 @@ def detect_cmd(
 def serve_cmd(
     host: str = typer.Option("127.0.0.1", help="Bind address"),
     port: int = typer.Option(8000, help="Port"),
+    reload: bool = typer.Option(False, help="Auto-reload on code changes"),
 ) -> None:
-    """Serve the local dataset explorer (evaluation tool -- reads ground truth)."""
+    """Serve the surveillance API and dashboard (no ground-truth access)."""
     import uvicorn
 
-    console.print(f"[green]dataset explorer[/] -> http://{host}:{port}")
+    console.print(f"[green]surveillance API[/] -> http://{host}:{port}")
+    uvicorn.run(
+        "surveillance.api.app:create_app", host=host, port=port, factory=True, reload=reload
+    )
+
+
+@app.command("explorer")
+def explorer_cmd(
+    host: str = typer.Option("127.0.0.1", help="Bind address"),
+    port: int = typer.Option(8001, help="Port"),
+) -> None:
+    """Serve the evaluation-side dataset explorer (reads ground truth -- not for prod)."""
+    import uvicorn
+
+    console.print(f"[yellow]dataset explorer (reads labels)[/] -> http://{host}:{port}")
     uvicorn.run("surveillance.eval.explorer:create_app", host=host, port=port, factory=True)
 
 
