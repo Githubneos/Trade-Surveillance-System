@@ -106,7 +106,7 @@ without ever reading counterparty identity. That contrast is the system's reason
 | Service | Port | Purpose |
 |---|---|---|
 | `api` | 8000 | Serving API + dashboard. No ground-truth access |
-| `explorer` | 8011 → 8001 | Evaluation-side dataset explorer. Reads labels |
+| `explorer` | 8011 → 8001 | Evaluation-side dataset explorer. Reads labels, served under `/explorer/*` |
 | `worker` | — | Redis Streams consumer → Postgres |
 | `bootstrap` | — | One-shot: migrate, generate, load, detect |
 | `postgres` | 55432 → 5432 | Trades, alerts, graph snapshots |

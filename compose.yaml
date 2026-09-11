@@ -59,7 +59,11 @@ services:
 
   api:
     build: .
-    environment: *env
+    environment:
+      <<: *env
+      # Where the dashboard should look for the explorer. Inside Compose the browser still
+      # reaches it on the published host port, not the service name.
+      SURV_EXPLORER_URL: http://localhost:8011
     volumes:
       - appdata:/app/data
     ports:

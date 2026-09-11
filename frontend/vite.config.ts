@@ -11,11 +11,11 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      // The dataset explorer runs as a separate app on 8001 because it reads ground-truth
-      // labels; the serving API on 8000 must not. Two proxy targets keeps that split
-      // visible in development instead of blurring it behind one origin.
-      "/api/scenarios": { target: "http://127.0.0.1:8001", changeOrigin: true },
-      "/api/z-histogram": { target: "http://127.0.0.1:8001", changeOrigin: true },
+      // The dataset explorer runs as a separate app on 8011 because it reads ground-truth
+      // labels; the serving API on 8000 must not. Distinct path prefixes keep that split
+      // unambiguous -- /api/stats meaning two different things depending on which port
+      // answered is precisely how the Dataset view silently broke.
+      "/explorer": { target: "http://127.0.0.1:8011", changeOrigin: true },
       "/api": { target: "http://127.0.0.1:8000", changeOrigin: true },
       "/ws": { target: "ws://127.0.0.1:8000", ws: true },
     },

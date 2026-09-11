@@ -100,6 +100,20 @@ def create_app() -> FastAPI:
 
     app = FastAPI(title="Trade Surveillance API", docs_url="/api/docs", lifespan=lifespan)
 
+    @app.get("/api/config")
+    def config() -> dict:
+        """Where the frontend should look for the evaluation explorer.
+
+        The explorer is a separate application on its own port, so the dashboard cannot
+        assume same-origin. Serving the location rather than hardcoding it keeps the two
+        deployable independently -- and keeps the API free of any label-bearing route.
+        """
+        import os
+
+        return {
+            "explorer_url": os.environ.get("SURV_EXPLORER_URL", "http://localhost:8011"),
+        }
+
     @app.get("/api/stats", response_model=StatsOut)
     def stats() -> StatsOut:
         with session_scope() as s:

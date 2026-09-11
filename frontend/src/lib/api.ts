@@ -78,17 +78,58 @@ export interface ScenarioDetail extends Omit<ScenarioRow, "n_accounts" | "n_trad
   trades: Trade[]
 }
 
+/**
+ * Base URL for the explorer.
+ *
+ * The explorer is a separate application on its own port, so the dashboard cannot assume
+ * same-origin. In development Vite proxies /explorer, so a relative path works; in
+ * production the serving API reports the explorer's location via /api/config.
+ *
+ * Resolved once and cached. Falling back to a relative path means a deployment that puts
+ * both behind one gateway keeps working without configuration.
+ */
+let explorerBase: Promise<string> | null = null
+
+function resolveExplorer(): Promise<string> {
+  explorerBase ??= fetch("/api/config")
+    .then((r) => (r.ok ? r.json() : null))
+    .then((cfg: { explorer_url?: string } | null) => {
+      if (!cfg?.explorer_url) return ""
+      // Same-origin already works (dev proxy, or a shared gateway) — prefer it, because a
+      // relative path needs no CORS.
+      return window.location.port === new URL(cfg.explorer_url).port ? "" : cfg.explorer_url
+    })
+    .catch(() => "")
+  return explorerBase
+}
+
 async function get<T>(path: string): Promise<T> {
   const res = await fetch(path)
   if (!res.ok) throw new Error(`${res.status} ${res.statusText} for ${path}`)
   return (await res.json()) as T
 }
 
+async function getExplorer<T>(path: string): Promise<T> {
+  const base = await resolveExplorer()
+  // Try the configured base first, then same-origin: in dev the proxy handles it, and a
+  // stale configured URL should not be the only thing that is tried.
+  const attempts = base ? [`${base}${path}`, path] : [path]
+  let lastError: Error | null = null
+  for (const url of attempts) {
+    try {
+      return await get<T>(url)
+    } catch (err) {
+      lastError = err as Error
+    }
+  }
+  throw lastError ?? new Error(`could not reach the explorer at ${path}`)
+}
+
 export const api = {
-  stats: () => get<Stats>("/api/stats"),
-  scenarios: () => get<ScenarioRow[]>("/api/scenarios"),
-  scenario: (id: string) => get<ScenarioDetail>(`/api/scenarios/${id}`),
-  zHistogram: () => get<ZHistogram>("/api/z-histogram"),
+  stats: () => getExplorer<Stats>("/explorer/stats"),
+  scenarios: () => getExplorer<ScenarioRow[]>("/explorer/scenarios"),
+  scenario: (id: string) => getExplorer<ScenarioDetail>(`/explorer/scenarios/${id}`),
+  zHistogram: () => getExplorer<ZHistogram>("/explorer/z-histogram"),
 }
 
 export interface ZHistogram {

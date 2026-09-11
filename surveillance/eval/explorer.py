@@ -17,6 +17,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
@@ -107,7 +108,7 @@ def _mount_frontend(app: FastAPI) -> None:
 
     @app.get("/{path:path}", response_class=HTMLResponse, include_in_schema=False)
     def spa_fallback(path: str):
-        if path.startswith("api/"):
+        if path.startswith(("api/", "explorer/")):
             raise HTTPException(404, "not found")
         candidate = FRONTEND_DIST / path
         if candidate.is_file():
@@ -120,8 +121,18 @@ def _mount_frontend(app: FastAPI) -> None:
 def create_app() -> FastAPI:
     app = FastAPI(title="Trade Surveillance -- Dataset Explorer", docs_url="/api/docs")
 
+    # The dashboard is served from the serving API's origin and fetches this app across
+    # ports. Restricted to loopback: this tool exposes ground-truth labels and has no
+    # business being reachable from an arbitrary origin.
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origin_regex=r"http://(localhost|127\.0\.0\.1)(:\d+)?",
+        allow_methods=["GET"],
+        allow_headers=["*"],
+    )
 
-    @app.get("/api/stats")
+
+    @app.get("/explorer/stats")
     def stats() -> dict:
         trades, labels = _dataset()
         z = _zframe()
@@ -154,7 +165,7 @@ def create_app() -> FastAPI:
             "db_trades": db_rows,
         }
 
-    @app.get("/api/scenarios")
+    @app.get("/explorer/scenarios")
     def scenarios() -> list[dict]:
         trades, labels = _dataset()
         z = _zframe()
@@ -187,7 +198,7 @@ def create_app() -> FastAPI:
             )
         return out
 
-    @app.get("/api/z-histogram")
+    @app.get("/explorer/z-histogram")
     def z_histogram() -> dict:
         """Distribution of account-relative log-notional z-scores, by group.
 
@@ -233,7 +244,7 @@ def create_app() -> FastAPI:
             )
         return {"bins": centres, "series": series}
 
-    @app.get("/api/scenarios/{scenario_id}")
+    @app.get("/explorer/scenarios/{scenario_id}")
     def scenario_detail(scenario_id: str) -> dict:
         _, labels = _dataset()
         z = _zframe()
@@ -276,7 +287,7 @@ def create_app() -> FastAPI:
             "trades": _serialise(rows.head(400), ref),
         }
 
-    @app.get("/api/trades")
+    @app.get("/explorer/trades")
     def trades_endpoint(
         account_id: int | None = None,
         security_id: int | None = None,
@@ -293,7 +304,7 @@ def create_app() -> FastAPI:
             m &= z["scenario_id"].notna()
         return _serialise(z[m].head(limit), _reference())
 
-    @app.get("/api/accounts/{account_id}")
+    @app.get("/explorer/accounts/{account_id}")
     def account_detail(account_id: int) -> dict:
         z = _zframe()
         ref = _reference()

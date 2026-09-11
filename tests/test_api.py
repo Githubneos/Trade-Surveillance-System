@@ -111,3 +111,19 @@ def test_hub_drops_for_the_slow_subscriber_only():
         assert fast.qsize() == 1, "a full subscriber must not block a healthy one"
 
     asyncio.run(scenario())
+
+
+def test_config_advertises_the_explorer_location(client):
+    """The dashboard is served from this origin but the explorer lives on another port,
+    so the location has to be discoverable rather than assumed."""
+    body = client.get("/api/config").json()
+    assert body["explorer_url"]
+    assert "explorer" not in client.get("/openapi.json").json()["paths"].keys() - {"/api/config"}
+
+
+def test_explorer_routes_are_not_on_the_serving_api(client):
+    """The two apps share an origin in the browser. When they also shared a path prefix,
+    /api/stats meant two different things depending on which port answered -- and the
+    dataset view silently rendered zeros against the wrong schema."""
+    for path in ("/explorer/stats", "/explorer/scenarios", "/explorer/z-histogram"):
+        assert client.get(path).status_code == 404
