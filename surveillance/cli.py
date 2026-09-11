@@ -168,6 +168,92 @@ def detect_cmd(
         print_report(out.alerts, read_labels(settings.ground_truth_path), trades, console)
 
 
+@app.command("news")
+def news_cmd(
+    securities: int = typer.Option(20, help="How many securities to correlate"),
+    offline: bool = typer.Option(False, help="Use only cached filings, make no requests"),
+) -> None:
+    """Correlate trading against real SEC 8-K filings (stretch signal)."""
+    import json as _json
+    from pathlib import Path
+
+    import pandas as pd
+
+    from surveillance.news.correlation import assign_ciks, correlate
+    from surveillance.news.edgar import EdgarClient
+
+    settings = get_settings()
+    trades = pd.read_parquet(settings.trades_path)
+    reference = _json.loads(settings.reference_path.read_text())
+    tickers = {s["id"]: s["ticker"] for s in reference["securities"]}
+    chosen = sorted(tickers)[:securities]
+
+    console.print(
+        "[yellow]Note:[/] these securities are invented, so they cannot genuinely correlate "
+        "with real filings.\nEach is mapped to a real CIK and that company's real 8-K "
+        "timestamps are used as news events.\nThis demonstrates the mechanism; it is not a "
+        "finding about these instruments."
+    )
+
+    client = EdgarClient(cache_dir=Path(settings.data_dir) / "edgar_cache", offline=offline)
+    mapping = assign_ciks(chosen)
+    filings = {}
+    with console.status("fetching filings from EDGAR..."):
+        for sid in chosen:
+            filings[sid] = client.recent_8k(mapping[sid], limit=40)
+    total = sum(len(v) for v in filings.values())
+    console.print(f"[green]loaded[/] {total} 8-K filings across {len(chosen)} securities")
+
+    signals = correlate(trades, filings, tickers)
+    in_window = len(signals)
+    flagged = [s for s in signals if s.flagged]
+
+    from rich.table import Table
+
+    if not in_window:
+        console.print(
+            "[dim]no filings fell inside the simulated trading window, so there was "
+            "nothing to correlate[/]"
+        )
+        return
+
+    table = Table(
+        title=f"\nFilings inside the trading window ({in_window} evaluated)",
+        title_justify="left",
+        header_style="bold",
+    )
+    for col in ("ticker", "filed", "event", "materiality", "pre-news", "expected", "lift"):
+        table.add_column(
+            col, justify="left" if col in ("ticker", "event", "filed") else "right"
+        )
+    for s in sorted(signals, key=lambda x: -x.activity_lift)[:15]:
+        lift = f"{s.activity_lift:.2f}x"
+        table.add_row(
+            s.ticker,
+            f"{s.filed_at:%Y-%m-%d}",
+            s.headline[:46],
+            f"{s.materiality:.2f}",
+            str(s.pre_news_trades),
+            f"{s.baseline_trades:.0f}",
+            f"[red]{lift}[/]" if s.flagged else lift,
+        )
+    console.print(table)
+
+    if flagged:
+        console.print(
+            f"\n[red]{len(flagged)} filing(s) breached both thresholds[/] "
+            f"(lift >= 2.0 and materiality >= 0.15)"
+        )
+    else:
+        console.print(
+            "\n[green]Nothing breached.[/] Every lift sits near 1.0, which is the correct "
+            "result:\nthese trades are synthetic and have no relationship to real filings, "
+            "so abnormal\npre-filing accumulation should not exist. The materiality column "
+            "shows the\nTF-IDF ranking working -- acquisitions and earnings score high, "
+            "routine director\nchanges score zero."
+        )
+
+
 @app.command("serve")
 def serve_cmd(
     host: str = typer.Option("127.0.0.1", help="Bind address"),

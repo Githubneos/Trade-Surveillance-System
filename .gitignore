@@ -12,3 +12,4 @@ node_modules/
 frontend/dist/
 .env
 *.egg-info/
+data/edgar_cache/
