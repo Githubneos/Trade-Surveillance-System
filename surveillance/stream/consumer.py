@@ -149,6 +149,7 @@ def consume(
     max_messages: int | None = None,
     idle_exit_s: float | None = None,
     max_consecutive_failures: int = 5,
+    batch_delay_s: float = 0.0,
     stream_key: str = STREAM_KEY,
     group: str = CONSUMER_GROUP,
     claim_min_idle_ms: int = CLAIM_MIN_IDLE_MS,
@@ -246,6 +247,12 @@ def consume(
             session.close()
 
         consecutive_failures = 0
+        if batch_delay_s:
+            # Deliberate throttle. Useful for a paced demo, and it makes the crash-recovery
+            # test deterministic: without it the consumer drains the stream faster than a
+            # test can reliably deliver a signal, so the kill lands after completion and
+            # the test silently stops exercising recovery.
+            time.sleep(batch_delay_s)
         stats.inserted += inserted
         stats.duplicates += duplicates
         client.xack(stream_key, group, *[mid for mid, _ in messages])  # (3)

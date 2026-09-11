@@ -102,6 +102,7 @@ def consume_cmd(
     idle_exit: float | None = typer.Option(
         5.0, help="Exit after this many idle seconds (None = run forever)"
     ),
+    delay_ms: float = typer.Option(0.0, help="Throttle: pause between batches"),
 ) -> None:
     """Consume the Redis stream into Postgres, idempotently."""
     import redis
@@ -123,6 +124,7 @@ def consume_cmd(
         stream_key=settings.stream_key,
         group=settings.consumer_group,
         claim_min_idle_ms=settings.claim_min_idle_ms,
+        batch_delay_s=delay_ms / 1000.0,
     )
     console.print(
         f"received={stats.received:,} inserted={stats.inserted:,} "

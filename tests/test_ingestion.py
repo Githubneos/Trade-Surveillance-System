@@ -141,10 +141,11 @@ def test_redelivery_is_absorbed_by_the_idempotent_write(client, maker, seeded):
 
 def test_sigkilled_consumer_loses_and_duplicates_nothing(client, maker, seeded):
     """Kill the consumer mid-stream, restart it, and check the books balance."""
-    # Enough work that the consumer cannot plausibly finish inside the polling interval.
-    # An earlier version used 6,000 trades, which the consumer drained in about a second --
-    # the kill then landed after completion and the test asserted nothing about recovery.
-    trades = seeded.trades.head(20000)
+    # The victim is throttled so the kill is deterministic. Earlier versions raced: the
+    # consumer drained the stream faster than the test could deliver a signal, so under
+    # load the kill landed after completion and the test quietly stopped exercising
+    # recovery at all -- passing while asserting nothing.
+    trades = seeded.trades.head(4000)
     publish(client, trades, stream_key=STREAM)
     assert client.xlen(STREAM) == len(trades)
 
@@ -159,7 +160,7 @@ def test_sigkilled_consumer_loses_and_duplicates_nothing(client, maker, seeded):
     }
     cmd = [
         sys.executable, "-m", "surveillance.cli", "consume",
-        "--name", "victim", "--batch", "50", "--idle-exit", "30",
+        "--name", "victim", "--batch", "100", "--idle-exit", "30", "--delay-ms", "40",
     ]
     proc = subprocess.Popen(cmd, env=env, cwd=REPO, stdout=subprocess.DEVNULL,
                             stderr=subprocess.DEVNULL)
@@ -167,9 +168,9 @@ def test_sigkilled_consumer_loses_and_duplicates_nothing(client, maker, seeded):
         # Wait until it is demonstrably mid-flight: some rows in, but not all.
         deadline = time.monotonic() + 60
         progressed = 0
-        # Kill well before the end so the window between observing progress and delivering
-        # the signal cannot let the run complete underneath us.
-        ceiling = int(len(trades) * 0.6)
+        # Kill early in the run. With the throttle the consumer needs seconds to reach
+        # this point, so the signal cannot arrive after completion.
+        ceiling = int(len(trades) * 0.5)
         while time.monotonic() < deadline:
             progressed, _ = _count(maker)
             if 0 < progressed < ceiling:
