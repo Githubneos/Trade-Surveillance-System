@@ -133,6 +133,39 @@ def consume_cmd(
         console.print(f"[red]errors:[/] {stats.errors[:3]}")
 
 
+@app.command("detect")
+def detect_cmd(
+    persist: bool = typer.Option(True, help="Write alerts to Postgres"),
+    report: bool = typer.Option(True, help="Print the scorecard against ground truth"),
+) -> None:
+    """Run both detection layers, fuse them, and score against ground truth."""
+    import pandas as pd
+
+    from surveillance.db.session import session_scope
+    from surveillance.detect.persistence import persist_alerts
+    from surveillance.detect.pipeline import load_liquidity, run_detection
+    from surveillance.eval.report import print_report
+    from surveillance.generator.ground_truth import read_labels
+
+    settings = get_settings()
+    trades = pd.read_parquet(settings.trades_path)
+
+    with console.status("running detection..."):
+        out = run_detection(trades, load_liquidity(settings))
+    console.print(
+        f"[green]detected[/] {len(out.alerts):,} alerts "
+        f"({len(out.typology_alerts):,} per-trade, {len(out.network_alerts):,} network)"
+    )
+
+    if persist:
+        with console.status("persisting..."), session_scope() as session:
+            counts = persist_alerts(session, out.alerts)
+        console.print(f"[green]persisted[/] {counts}")
+
+    if report:
+        print_report(out.alerts, read_labels(settings.ground_truth_path), trades, console)
+
+
 @app.command("serve")
 def serve_cmd(
     host: str = typer.Option("127.0.0.1", help="Bind address"),
