@@ -91,6 +91,7 @@ class ScenarioContext:
         types: tuple[AccountType, ...] | None = None,
         notional_band: tuple[float, float] | None = None,
         max_daily_rate: float | None = None,
+        predicate=None,
         exclude: set[int] | None = None,
     ) -> list[int]:
         pool = []
@@ -105,6 +106,8 @@ class ScenarioContext:
                 if not (notional_band[0] <= med <= notional_band[1]):
                     continue
             if max_daily_rate is not None and p.daily_rate > max_daily_rate:
+                continue
+            if predicate is not None and not predicate(p):
                 continue
             pool.append(aid)
         if len(pool) < n:

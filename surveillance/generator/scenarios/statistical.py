@@ -38,11 +38,36 @@ def _pick_security(rng: np.random.Generator, ctx: ScenarioContext, account_id: i
     return int(rng.choice(p.watchlist, p=p.watch_weights))
 
 
+#: Width of the intraday buckets the odd-hour scenario works in. Matched to the detector's
+#: histogram resolution on purpose: a timing anomaly finer than any detector's resolution
+#: is not a planted anomaly, it is a rounding error.
+TIME_BUCKET_MINUTES = 30
+
+
 def _low_probability_minute(rng: np.random.Generator, pmf: np.ndarray) -> int:
-    """A minute this account almost never trades in -- bottom decile of its own profile."""
-    order = np.argsort(pmf)
-    tail = order[: max(1, len(order) // 10)]
-    return int(rng.choice(tail))
+    """A minute inside the 30-minute window this account uses least.
+
+    An earlier version picked from the bottom decile of the per-minute profile, which
+    sounds equivalent and is not. The intraday profile is smooth and U-shaped, so its
+    lowest-probability *minutes* are all in the midday trough -- a stretch the account
+    trades through perfectly routinely. Measuring showed those trades landing around the
+    75th percentile of time-surprise: not an anomaly, just a slightly quiet minute, and no
+    detector should have flagged them.
+
+    Working at bucket resolution plants what the label actually claims: a trade in a part
+    of the session this account essentially never uses.
+    """
+    n_buckets = int(np.ceil(len(pmf) / TIME_BUCKET_MINUTES))
+    mass = np.array(
+        [
+            pmf[i * TIME_BUCKET_MINUTES : (i + 1) * TIME_BUCKET_MINUTES].sum()
+            for i in range(n_buckets)
+        ]
+    )
+    bucket = int(np.argmin(mass))
+    lo = bucket * TIME_BUCKET_MINUTES
+    hi = min(lo + TIME_BUCKET_MINUTES, len(pmf))
+    return int(rng.integers(lo, hi))
 
 
 def generate(rng: np.random.Generator, ctx: ScenarioContext) -> ScenarioOutput:
@@ -54,7 +79,21 @@ def generate(rng: np.random.Generator, ctx: ScenarioContext) -> ScenarioOutput:
         for _ in range(ctx.scaled(VARIANT_COUNTS[variant])):
             counter += 1
             scenario_id = f"stat_{variant}_{counter:03d}"
-            if variant == "frequency_burst":
+            if variant == "odd_hour":
+                # Only meaningful for an account with a schedule to break. Planting this on
+                # an all-session trader produces a trade that is unremarkable by
+                # construction, and the label would then promise an anomaly the data does
+                # not contain -- which is worse than not planting one at all.
+                # Also needs enough activity to have established the pattern in the first
+                # place: for an account with a handful of trades there is no "usual time"
+                # to deviate from, and the planted trade is just an early trade.
+                account_id = ctx.available_accounts(
+                    rng,
+                    1,
+                    types=ELIGIBLE,
+                    predicate=lambda p: p.concentrated and p.daily_rate >= 4.0,
+                )[0]
+            elif variant == "frequency_burst":
                 # A 12-trade burst is only anomalous for an account that does not normally
                 # trade 12 times. Planting one on a prop desk averaging 60 trades/day would
                 # be an unlabelled false positive waiting to happen.
@@ -123,7 +162,9 @@ def generate(rng: np.random.Generator, ctx: ScenarioContext) -> ScenarioOutput:
                     price=price, day_idx=day_idx, minute=minute, second=int(rng.integers(0, 60)),
                     scenario_id=scenario_id,
                 )
-                notes = "trade placed in the bottom decile of this account's time-of-day profile"
+                notes = (
+                    "trade placed inside the 30-minute window this account uses least"
+                )
                 window = (minute, minute)
 
             else:  # frequency_burst

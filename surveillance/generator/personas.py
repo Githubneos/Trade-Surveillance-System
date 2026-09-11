@@ -66,6 +66,25 @@ TIER_APPETITE: dict[AccountType, dict[LiquidityTier, float]] = {
     },
 }
 
+#: Share of accounts that trade only within a narrow window of the session rather than
+#: across the whole day. Real retail flow is full of these -- people trade before work, at
+#: lunch, or on the close -- and institutional desks often have a mandated execution
+#: window. It also makes "out-of-pattern timing" a meaningful concept: for an account
+#: active all session, no time of day is genuinely surprising, so there is nothing for a
+#: timing feature to detect.
+CONCENTRATED_SCHEDULE_RATE: dict[AccountType, float] = {
+    AccountType.RETAIL: 0.45,
+    AccountType.INSTITUTIONAL: 0.25,
+    AccountType.HEDGE_FUND: 0.10,
+    AccountType.PROP_DESK: 0.10,
+    AccountType.MARKET_MAKER: 0.0,
+}
+
+#: How much of its activity a concentrated account places outside its window. Not zero:
+#: people do occasionally trade off-schedule, and a detector that fires on a hard zero is
+#: detecting a generator artefact rather than a behaviour.
+OFF_WINDOW_LEAKAGE = 0.04
+
 #: Monday..Friday activity multipliers.
 DOW_MULTIPLIER = np.array([1.06, 1.02, 1.00, 1.01, 0.94])
 
@@ -89,6 +108,8 @@ class Persona:
     #: Per-minute probability distribution over the session (sums to 1).
     minute_pmf: np.ndarray
     two_sided: bool
+    #: True when this account confines its trading to a narrow window of the session.
+    concentrated: bool = False
 
     def median_notional(self) -> float:
         return float(np.exp(self.log_notional_mu))
@@ -128,6 +149,15 @@ def build_personas(
         # rather than one global curve that would make the 'odd hour' feature trivial.
         tilt = float(rng.normal(0.0, 0.9))
         pmf = base * np.exp(tilt * (0.5 - u))
+
+        concentrated = bool(rng.random() < CONCENTRATED_SCHEDULE_RATE[atype])
+        if concentrated:
+            width = int(rng.integers(60, 181))  # a one- to three-hour habit
+            start = int(rng.integers(0, MINUTES_PER_SESSION - width))
+            mask = np.full(MINUTES_PER_SESSION, OFF_WINDOW_LEAKAGE)
+            mask[start : start + width] = 1.0
+            pmf = pmf * mask
+
         pmf /= pmf.sum()
 
         personas[acct.id] = Persona(
@@ -141,5 +171,6 @@ def build_personas(
             buy_prob=float(np.clip(rng.normal(0.5, 0.07), 0.28, 0.72)),
             minute_pmf=pmf,
             two_sided=atype is AccountType.MARKET_MAKER,
+            concentrated=concentrated,
         )
     return personas
