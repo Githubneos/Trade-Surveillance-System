@@ -63,6 +63,76 @@ def report_cmd() -> None:
     print_report(ds, console)
 
 
+@app.command("produce")
+def produce_cmd(
+    speed: float = typer.Option(
+        0.0, help="Simulated seconds per real second (0 = as fast as possible)"
+    ),
+    limit: int | None = typer.Option(None, help="Only publish the first N trades"),
+    reset: bool = typer.Option(False, help="Delete the stream before publishing"),
+) -> None:
+    """Replay the generated dataset onto the Redis stream."""
+    import pandas as pd
+    import redis
+
+    from surveillance.stream.producer import publish
+
+    settings = get_settings()
+    client = redis.from_url(settings.redis_url)
+    if reset:
+        client.delete(settings.stream_key)
+        console.print("[yellow]stream reset[/]")
+
+    trades = pd.read_parquet(settings.trades_path)
+    with console.status("publishing..."):
+        stats = publish(
+            client, trades, speed=speed, limit=limit, stream_key=settings.stream_key
+        )
+    rate = stats.published / max(stats.elapsed_s, 1e-9)
+    console.print(
+        f"[green]published[/] {stats.published:,} trades in {stats.elapsed_s:.1f}s "
+        f"({rate:,.0f}/s)"
+    )
+
+
+@app.command("consume")
+def consume_cmd(
+    name: str = typer.Option("worker-1", help="Consumer name within the group"),
+    batch: int = typer.Option(500, help="Messages per batch"),
+    idle_exit: float | None = typer.Option(
+        5.0, help="Exit after this many idle seconds (None = run forever)"
+    ),
+) -> None:
+    """Consume the Redis stream into Postgres, idempotently."""
+    import redis
+
+    from surveillance.db.session import get_sessionmaker
+    from surveillance.stream.consumer import consume
+
+    settings = get_settings()
+    client = redis.from_url(settings.redis_url)
+    maker = get_sessionmaker()
+
+    console.print(f"[green]consuming[/] as {name}")
+    stats = consume(
+        client,
+        maker,
+        consumer_name=name,
+        batch_size=batch,
+        idle_exit_s=idle_exit,
+        stream_key=settings.stream_key,
+        group=settings.consumer_group,
+        claim_min_idle_ms=settings.claim_min_idle_ms,
+    )
+    console.print(
+        f"received={stats.received:,} inserted={stats.inserted:,} "
+        f"duplicates={stats.duplicates:,} reclaimed={stats.reclaimed:,} "
+        f"batches={stats.batches:,}"
+    )
+    if stats.errors:
+        console.print(f"[red]errors:[/] {stats.errors[:3]}")
+
+
 @app.command("serve")
 def serve_cmd(
     host: str = typer.Option("127.0.0.1", help="Bind address"),

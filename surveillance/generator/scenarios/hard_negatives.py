@@ -29,6 +29,7 @@ from surveillance.generator.scenarios.base import (
     ScenarioContext,
     ScenarioOutput,
     clamp_minute,
+    pick_day,
     qty_for_notional,
 )
 
@@ -64,7 +65,7 @@ def _liquid_crowding(rng: np.random.Generator, ctx: ScenarioContext, out: Scenar
         members = ctx.available_accounts(rng, n_accounts, types=ORDINARY)
         # NOT reserved: these accounts are behaving normally and may legitimately appear
         # elsewhere. Reserving them would be over-claiming.
-        day_idx = int(rng.integers(1, n_days))
+        day_idx = pick_day(rng, 1, n_days)
         start_minute = clamp_minute(rng.integers(30, 300))
         minutes = []
         for m in members:
@@ -126,7 +127,7 @@ def _mm_two_sided(rng: np.random.Generator, ctx: ScenarioContext, out: ScenarioO
             rng, int(rng.integers(6, 11)), types=ORDINARY,
             notional_band=(persona.median_notional() / 2.5, persona.median_notional() * 2.5),
         )
-        day_idx = int(rng.integers(1, n_days))
+        day_idx = pick_day(rng, 1, n_days)
 
         n_fills = int(rng.integers(70, 131))
         # The discriminator against a wash ring: the market maker takes the other side of
@@ -201,7 +202,7 @@ def _legit_block(rng: np.random.Generator, ctx: ScenarioContext, out: ScenarioOu
         ctx.reserve([aid])
         persona = ctx.personas[aid]
         sec_id = int(rng.choice(persona.watchlist, p=persona.watch_weights))
-        day_idx = int(rng.integers(2, n_days))
+        day_idx = pick_day(rng, 2, n_days)
         minute = int(rng.choice(len(persona.minute_pmf), p=persona.minute_pmf))
         is_buy = bool(rng.random() < persona.buy_prob)
         price = ctx.market.execution_price(rng, sec_id, day_idx, minute, is_buy)
@@ -254,7 +255,7 @@ def _event_comovement(rng: np.random.Generator, ctx: ScenarioContext, out: Scena
         n_accounts = min(len(holders), int(rng.integers(18, 29)))
         members = [int(x) for x in rng.choice(np.array(holders), size=n_accounts, replace=False)]
 
-        day_idx = int(rng.integers(2, n_days))
+        day_idx = pick_day(rng, 2, n_days)
         window_minutes = int(rng.integers(30, 51))
         start_minute = clamp_minute(rng.integers(20, 330))
         minutes = []

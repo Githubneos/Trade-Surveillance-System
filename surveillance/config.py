@@ -22,6 +22,12 @@ class Settings(BaseSettings):
     # so adding a new scenario does not perturb previously generated background data.
     seed: int = 20240917
 
+    #: Stream topology. Overridable so tests can run against an isolated stream and a
+    #: short reclaim threshold without mutating module-level constants.
+    stream_key: str = "trades"
+    consumer_group: str = "ingest"
+    claim_min_idle_ms: int = 30_000
+
     data_dir: Path = DATA_DIR
 
     @property

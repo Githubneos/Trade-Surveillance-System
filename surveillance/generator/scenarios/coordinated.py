@@ -22,6 +22,7 @@ from surveillance.generator.scenarios.base import (
     ScenarioContext,
     ScenarioOutput,
     clamp_minute,
+    pick_day,
     qty_for_notional,
 )
 
@@ -52,7 +53,7 @@ def generate(rng: np.random.Generator, ctx: ScenarioContext) -> ScenarioOutput:
         ctx.reserved_securities.add(sec_id)
         candidates = [s for s in candidates if s != sec_id]
 
-        day_idx = int(rng.integers(2, n_days))
+        day_idx = pick_day(rng, 2, n_days)
         window_minutes = int(rng.integers(20, 46))
         start_minute = clamp_minute(rng.integers(20, 380 - window_minutes))
         is_buy = bool(rng.random() < 0.75)  # usually accumulation ahead of good news

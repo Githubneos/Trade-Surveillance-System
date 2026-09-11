@@ -28,6 +28,7 @@ from surveillance.generator.scenarios.base import (
     ScenarioContext,
     ScenarioOutput,
     clamp_minute,
+    pick_day,
     qty_for_notional,
 )
 
@@ -89,7 +90,8 @@ def generate(rng: np.random.Generator, ctx: ScenarioContext) -> ScenarioOutput:
 
         n_rounds = int(rng.integers(6, 15))
         span_days = int(rng.integers(1, 4))
-        start_day = int(rng.integers(1, max(2, n_days - span_days)))
+        span_days = min(span_days, max(n_days - 1, 1))
+        start_day = pick_day(rng, 1, max(n_days - span_days, 1))
 
         minute = clamp_minute(rng.integers(30, 200))
         day_idx = start_day

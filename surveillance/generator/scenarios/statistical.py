@@ -15,6 +15,7 @@ from surveillance.generator.scenarios.base import (
     ScenarioContext,
     ScenarioOutput,
     clamp_minute,
+    pick_day,
     qty_for_notional,
 )
 
@@ -67,7 +68,7 @@ def generate(rng: np.random.Generator, ctx: ScenarioContext) -> ScenarioOutput:
             sec_id = _pick_security(rng, ctx, account_id)
             # Avoid the first day: the statistical layer needs some prior history for this
             # account before a "relative to its own past" feature means anything.
-            day_idx = int(rng.integers(3, n_days))
+            day_idx = pick_day(rng, 3, n_days)
 
             if variant == "size_spike":
                 minute = int(rng.choice(len(persona.minute_pmf), p=persona.minute_pmf))

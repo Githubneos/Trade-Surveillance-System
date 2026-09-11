@@ -119,6 +119,18 @@ class ScenarioContext:
         return self.market.timestamp(day_idx, minute, second)
 
 
+def pick_day(rng: np.random.Generator, earliest: int, n_days: int) -> int:
+    """Choose a day at or after ``earliest``, degrading gracefully on short windows.
+
+    Several scenarios want to avoid the first few days so an account has some history for
+    a "relative to its own past" feature to work against. In the small configurations used
+    by tests that preference can exceed the window entirely, so it is a preference, not a
+    requirement.
+    """
+    lo = min(max(earliest, 0), max(n_days - 1, 0))
+    return int(rng.integers(lo, n_days)) if n_days > lo else lo
+
+
 def clamp_minute(minute: float) -> int:
     return int(np.clip(minute, 0, MINUTES_PER_SESSION - 1))
 
